@@ -1,39 +1,27 @@
 # vision-based-avoidance
 
-The dagger_pytorch_Ros environment is being developed by Caleb Harris for use in the AE8900 Special Problem.  The work in this environment is for the project:  "Obstacle Avoidance for a UAS using Reinforcement Learning".  Further details on using this information will be provided below.
+The vision-based-avoidance environment is being developed by Caleb Harris at Georgia Institute of Technology. For more information please contact the developer.
 
 ## Getting Started
 
-Follow these instructions to install the project from source.
-
-Another good source for installing the proper setup is found here:  https://idorobotics.com/2018/11/11/3d-computer-vision-in-ros/
+Follow these instructions to install the project from source. More information will be provided in the future, but for now see the instructions for RotorS at my branch [here](https://github.com/calebh94/rotors_simulator/). Another good source for installing the proper setup for computer vision and deep learning tools is  found [here](https://idorobotics.com/2018/11/11/3d-computer-vision-in-ros/).
 
 ### Prerequisites
 
-This package is dependent RotorS, mav_mpc_control, etc... 
+This package is dependent on RotorS, mav_control_rw, pcl, cv2, torch and more! For more detailed package requirements please see the requirements file and the ROS package file.
 
-and pcl (http://www.pointclouds.org/documentation/tutorials/compiling_pcl_posix.php)
+## Micro Air Vehicle (MAV) Models
+The original RotorS environment provided multiple MAV models such as hummingbird and firefly. Additional models have been created and are described below:
+* DJI: A custom designed quadcopter which uses  dji F450 flamewheel frame
+* matrice: A model of the dji matrice M100M
 
-### Installing
-
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
-
-```
-HERE IS HOW TO INSTALL THOSE!
-```
-
-And repeat
-
-```
-AND THIS!
-```
+## Controllers
+The original RotorS environment and Control packages provided PID and MPC controllers for the vehicles. Personal updates has extended these controllers to the new MAVs, and has modified the MPC controller using the ARUCO solver to utilize rate-based model tracking and tune the parameters for the new MAVs.
 
 ## Data Collection
 
 ### Rosbag data collection
-Start by running simulation with the following mav and world:
+Start by running simulation with one of the MAVs and worlds:
 ```
 roslaunch rotors_gazebo obstacle_avoidance.launch mav_name:=DJI world_name:=ob
 ```
@@ -47,7 +35,7 @@ rosbag record rosout tf /DJI/command/trajectory /DJI/command/motor_speed /DJI/co
 
 Afterwards, the file "read_bag.py" will be used to translate the data into a dataset.
 
-### single image data collect
+### Data Collection Process
 
 To collect data for training follow the process below.
 
@@ -137,17 +125,9 @@ Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c6
 
 ## Authors
 
-* **Caleb Harris** - *Initial work* - (caleb.harris94@gatech.edu)
-
-## License
-
-CURRENTLY NO LICENSE I GUESS...
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+* **Caleb Harris** - *Developer and Maintaner* - (caleb.harris94@gatech.edu)
 
 ## Acknowledgments
 
-* Hat tip to anyone whose code was used
 * "There is good in this world Frodo, and it is worth fighting for."  - Sam Baggins, Lord of the Rings
-* etc
 
