@@ -43,7 +43,7 @@ class DAggerNode:
         self.active = 'astar'  # To Start
         self.choice_count = 10 #choose every 10 actions
         self.choice_current = 10
-        self.dagger_beta = 0.5
+        self.dagger_beta = 0.0
         # 1.0 ALL POLICY, 0.0 ALL EXPERT
 
         waypoint_string = '/' + str(self.namespace) + '/command/trajectory'
@@ -83,7 +83,11 @@ class DAggerNode:
             header.frame_id = 'frame'
             wpt.joint_names.append('base_link')
             wpt.header = header
-            quat = quaternion.from_euler_angles(0, 0, math.radians(-45))
+            if self.namespace == "DJI":
+                direction_theta = -45
+            else:
+                direction_theta = 0
+            quat = quaternion.from_euler_angles(0, 0, math.radians(direction_theta))
 
             transforms = Transform(translation=Point(0,0,1.5), rotation=quat)
 

@@ -330,6 +330,8 @@ def odom_callback(odom_msg):
 
     position = (x_truth, y_truth)
 
+    z_des = 1.0
+
     # If a waypoint exists, check if complete
     if len(waypoints) > 0:
         x_des = waypoints[0][0]
@@ -405,7 +407,8 @@ def odom_callback(odom_msg):
             point = MultiDOFJointTrajectoryPoint([transforms], [velocities], [accelerations], rospy.Time(k))
             wpt.points.append(point)
             wpt.joint_names.append('base_link')
-        wp_publisher.publish(wpt)
+            #TODO: way to turn on and off this
+        # wp_publisher.publish(wpt)
 
         # Goal Point
         final = Point()
@@ -460,13 +463,14 @@ def planner_main():
 
     # Create Subscribers
     subscriber_map = rospy.Subscriber("/projected_map", OccupancyGrid, grid_callback, queue_size=1)
-    subscriber_odom = rospy.Subscriber(subscribe_string, Odometry, odom_callback, queue_size=10)
+    subscriber_odom = rospy.Subscriber(subscribe_string, Odometry, odom_callback, queue_size=1)
 
     # Create Publishers
-    wp_publisher = rospy.Publisher(publish_string, MultiDOFJointTrajectory, queue_size=10)
+    #TODO: have switch for alone or with DNN
+    wp_publisher = rospy.Publisher(publish_string, MultiDOFJointTrajectory, queue_size=1)
     goal_publisher = rospy.Publisher('/goal', Point, queue_size=10)
 
-    astar_publisher = rospy.Publisher(pub_point_string, Point, queue_size=10)
+    astar_publisher = rospy.Publisher(pub_point_string, Point, queue_size=1)
 
     rospy.loginfo(
         "\nStarting Path Planner Node for {}! \n Current planner is a 2D AStar planner!\n ---- RUNNING ----\n".format(
