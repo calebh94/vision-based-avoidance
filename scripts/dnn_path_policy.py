@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/home/charris/obstacle_avoidance/src/dagger_pytorch_ros/venv/bin/python
 
 '''
 
@@ -16,9 +16,8 @@ Script for running DNN Policy in DAgger framework
 # Input two into Trained DNN Model to get prediction
 # ANOTHER NODE WILL CHOOSE WHICH ACTION TO TAKE
 
-#3###################3#######################################3
+# 3###################3#######################################3
 # REFERENCE:  https://medium.com/@beta_b0t/how-to-setup-ros-with-python-3-44a69ca36674
-
 
 
 import sys
@@ -40,10 +39,11 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 from skimage import io, transform
 
-from avoidance_framework import DNN_C4F4F2_Classifier2, DNN_Classifier_small, DNN_C4F4F2_Astar_small, DNN_C4F4F2_Astar
+# from avoidance_framework import DNN_C4F4F2_Classifier2, DNN_Classifier_small, DNN_C4F4F2_Astar_small, DNN_C4F4F2_Astar
 # from torchvision import transforms
 import torch.nn.functional as F
 import torch
+import torch.nn as nn
 from torch.autograd import Variable
 # from train_DNN_for_classify import Crop, ToTensor_Norm, Rescale, ObstacleAvoidanceDataset
 
@@ -57,6 +57,175 @@ import numpy as np
 import math
 
 roslib.load_manifest('rotors_gazebo')
+
+
+### DEEP NEURAL NETWORK ARCHITECTURES
+
+class DNN_Classifier_small(nn.Module):
+
+    def __init__(self):
+        super(DNN_Classifier_small, self).__init__()
+
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3, padding=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2))
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(64, 128, kernel_size=3, padding=2),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2))
+        self.layer4 = nn.Sequential(
+            nn.Conv2d(128, 256, kernel_size=3, padding=2),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            nn.MaxPool2d(2))
+
+        # self.fc1 = nn.Linear(2304, 1000)
+        self.fc1 = nn.Linear(6400, 256)
+        self.fc2 = nn.Linear(256, 56)
+        # self.fc3 = nn.Linear(500, 36)
+
+        self.fc3 = nn.Linear(58, 28)
+        self.fc4 = nn.Linear(28, 9)
+
+    def forward(self, pose_input, img_input):
+        # cnnout = self.layer1(img_input.float()[None])
+        cnnout = self.layer1(img_input.float())
+        cnnout = self.layer2(cnnout)
+        cnnout = self.layer3(cnnout)
+        cnnout = self.layer4(cnnout)
+        cnnout = cnnout.view(cnnout.size(0), -1)
+        cnnout = F.relu(self.fc1(cnnout))
+        cnnout = self.fc2(cnnout)
+        # cnnout = F.relu(self.fc2(cnnout))
+        # cnnout = self.fc3(cnnout)
+        # cnnout = F.relu(cnnout, dim=1)
+        cnnout = F.relu(cnnout)
+
+        posein = F.relu(pose_input.float().squeeze())
+
+        # pose input is [x,y]
+        # dnn_input = torch.cat((pose_input.float().squeeze(), cnnout), dim=1)
+        if posein.dim() == 1:
+            posein = posein.reshape((1, 2))
+        dnn_input = torch.cat((posein, cnnout), dim=1)
+
+        # dnn_input = torch.stack(tensor_array)
+
+        # # out = F.relu(self.fc4(dnn_input))
+        # out = self.fc4(dnn_input)
+        #
+        # out = self.fc5(out)
+
+        out = F.relu(self.fc3(dnn_input))
+        out = self.fc4(out)
+
+        return F.log_softmax(out, dim=1)
+
+
+class DNN_C4F4F2_Astar_small(nn.Module):
+
+    def __init__(self):
+        super(DNN_C4F4F2_Astar_small, self).__init__()
+
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3, padding=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2))
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(64, 128, kernel_size=3, padding=2),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2))
+        self.layer4 = nn.Sequential(
+            nn.Conv2d(128, 256, kernel_size=3, padding=2),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            nn.MaxPool2d(2))
+
+        # self.fc1 = nn.Linear(2304, 1000)
+        self.fc1 = nn.Linear(6400, 512)
+        self.fc2 = nn.Linear(512, 36)
+        # self.fc3 = nn.Linear(500, 36)
+
+        self.fc3 = nn.Linear(38, 12)
+        self.fc4 = nn.Linear(12, 2)
+
+    def forward(self, pose_input, img_input, viz=False):
+        # cnnout = self.layer1(img_input.float()[None])
+        layer1 = self.layer1(img_input.float())
+        layer2 = self.layer2(layer1)
+        layer3 = self.layer3(layer2)
+        layer4 = self.layer4(layer3)
+
+        if viz:
+            fig = plt.figure()
+            layer1_graph = layer1[40].data
+            for idx, filt in enumerate(layer1_graph):
+                plt.subplot(2, 16, idx + 1)
+                plt.imshow(filt, cmap="gray")
+                plt.axis('off')
+
+            fig2 = plt.figure()
+            layer2_graph = layer2[40].data
+            for idx, filt in enumerate(layer2_graph):
+                plt.subplot(4, 16, idx + 1)
+                plt.imshow(filt, cmap="gray")
+                plt.axis('off')
+
+            fig3 = plt.figure()
+            layer3_graph = layer3[40].data
+            for idx, filt in enumerate(layer3_graph):
+                plt.subplot(8, 16, idx + 1)
+                plt.imshow(filt, cmap="gray")
+                plt.axis('off')
+
+            fig4 = plt.figure()
+            layer4_graph = layer4[40].data
+            for idx, filt in enumerate(layer4_graph):
+                plt.subplot(8, 32, idx + 1)
+                plt.imshow(filt, cmap="gray")
+                plt.axis('off')
+
+        cnnout = layer4.view(layer4.size(0), -1)
+        cnnout = F.relu(self.fc1(cnnout))
+        cnnout = self.fc2(cnnout)
+        # cnnout = F.relu(self.fc2(cnnout))
+        # cnnout = self.fc3(cnnout)
+        # cnnout = F.relu(cnnout, dim=1)
+        cnnout = F.relu(cnnout)
+
+        posein = pose_input.float()
+        posein = posein.reshape((posein.shape[0], posein.shape[2]))
+        posein = F.relu(posein)
+
+        # pose input is [x,y]
+        dnn_input = torch.cat((posein, cnnout), dim=1)
+
+        # dnn_input = torch.stack(tensor_array)
+
+        # # out = F.relu(self.fc4(dnn_input))
+        # out = self.fc4(dnn_input)
+        #
+        # out = self.fc5(out)
+
+        out = F.relu(self.fc3(dnn_input))
+        out = self.fc4(out)
+
+        return out
 
 
 def crop(output_h, output_w, image):
@@ -88,9 +257,10 @@ def to_tensor_norm(image):
     # numpy image: H x W x C
     # torch image: C X H X W
     image = image.transpose((2, 0, 1))
-    image = F.normalize(torch.from_numpy(image),3)
+    image = F.normalize(torch.from_numpy(image), 3)
 
     return image
+
 
 def to_tensor(image):
     # swap color axis because
@@ -143,7 +313,7 @@ class DnnPathPolicy:
         self.subscribe_string_odom = '/' + str(self.namespace) + '/odometry_sensor1/odometry'
         self.subscribe_string_image = '/' + str(self.namespace) + '/vi_sensor/camera_depth/camera/image_raw/compressed'
         self.pub_point_string = '/' + str(self.namespace) + '/dnn/nextpoint'
-        
+
         self.subscriber_odom = rospy.Subscriber(self.subscribe_string_odom, Odometry, self.odom_callback, queue_size=10)
         self.subscriber_image = rospy.Subscriber(self.subscribe_string_image, CompressedImage, self.callback_image)
         self.dnn_publisher = rospy.Publisher(self.pub_point_string, Point, queue_size=10)
@@ -152,7 +322,6 @@ class DnnPathPolicy:
         # self.model = []
         self.init = False
         self.init_model()
-
 
     def get_path_command(self, selection):
         if selection == 0:
@@ -189,8 +358,7 @@ class DnnPathPolicy:
         x = self.x_pos + x
         y = self.y_pos + y
 
-        return x,y
-
+        return x, y
 
     def init_model(self):
         if self.type == 'classify':
@@ -198,7 +366,8 @@ class DnnPathPolicy:
             device = "cuda"
             model.to(device)
             model.load_state_dict(
-                torch.load('/home/charris/obstacle_avoidance/src/dagger_pytorch_ros/dnn/Models/dnn_classify_4-15_v1.pt'))
+                # torch.load('/home/charris/obstacle_avoidance/src/dagger_pytorch_ros/dnn/Models/dnn_classify_4-15_v1.pt'))
+                torch.load('/home/charris/Desktop/models/dnn_classify_4-15_v1.pt'))
             model.eval()
         elif self.type == 'regression':
             # model = DNN_C4F4F2_Astar()
@@ -206,18 +375,18 @@ class DnnPathPolicy:
             device = "cuda"
             model.to(device)
             model.load_state_dict(
-                torch.load('/home/charris/obstacle_avoidance/src/dagger_pytorch_ros/dnn/Models/dnn_4-23_v4_30.pt'))
+                torch.load('/home/charris/Desktop/models/dnn_regr_4-15_v1_49.pt'))
+            # torch.load('/home/charris/obstacle_avoidance/src/dagger_pytorch_ros/dnn/Models/dnn_4-23_v4_30.pt'))
             model.eval()
 
         self.model = model
         self.init = True
 
-
     def do_transforms(self, image):
         if self.type == 'regression':
             image = crop(360, 640, image)
-            image = rescale(64,64,image)
-            image = image.reshape((64,64,1))
+            image = rescale(64, 64, image)
+            image = image.reshape((64, 64, 1))
             image = to_tensor(image)
             # image = F.normalize(image,3)
         elif self.type == 'classify':
@@ -227,7 +396,6 @@ class DnnPathPolicy:
             image = to_tensor(image)
 
         return image
-
 
     def callback_image(self, data):
         cv_image = []
@@ -266,16 +434,15 @@ class DnnPathPolicy:
             # setting up image input
             img_input = Variable(self.transformed_image)
 
-
-            img_input = img_input.reshape((1,img_input.shape[0],img_input.shape[1],img_input.shape[2]))
-            pose_input = pose_input.reshape((1,1,pose_input.shape[0]))
+            img_input = img_input.reshape((1, img_input.shape[0], img_input.shape[1], img_input.shape[2]))
+            pose_input = pose_input.reshape((1, 1, pose_input.shape[0]))
 
             if next(self.model.parameters()).is_cuda == True:
                 img_input = img_input.to(torch.device("cuda"))
                 pose_input = pose_input.to(torch.device("cuda"))
 
             output = self.model(pose_input, img_input)
-            _, pred = torch.max(output,1)
+            _, pred = torch.max(output, 1)
 
             if self.type == 'classify':
 
@@ -338,6 +505,8 @@ def main():
         namespace = sys.argv[1]
     else:
         namespace = 'DJI'
+
+    rospy.loginfo("DNN policy process starting up for {}! \n ==== RUNNING ====\n".format(namespace))
 
     DnnPathPolicy(namespace=namespace)
     rospy.spin()

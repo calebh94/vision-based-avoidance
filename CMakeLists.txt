@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(dagger_pytorch_ros)
+project(vision-based-avoidance)
 #find_package(OpenCV REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
         roscpp

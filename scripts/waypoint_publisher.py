@@ -1,4 +1,4 @@
-#!/home/charris/.virtualenvs/dagger_pytorch_ros/bin/python
+#!/home/charris/obstacle_avoidance/src/dagger_pytorch_ros/venv/bin/python
 
 import sys
 print(sys.path)

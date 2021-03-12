@@ -1,11 +1,9 @@
-'''
+#!/home/charris/obstacle_avoidance/src/dagger_pytorch_ros/venv/bin/python
 
-
+"""
 Script for DAgger algorithm to select the expert of learned policy
+"""
 
-
-
-'''
 import sys
 import time
 
@@ -96,6 +94,7 @@ class DAggerNode:
             self.waypoint_pub.publish(wpt)
 
         if abs(self.pose_x - 5) < 0.1:
+            #TODO: modify to a Goal file or only have this on when in "Training"
             self.restarting = True
             print('Made it to goal location')
 
@@ -152,29 +151,25 @@ class DAggerNode:
             self.waypoint_pub.publish(wpt)
 
 
-def main():
-
-    # rate = rospy.Rate(50) # 50 hz
+def dagger_main():
 
     if (len(sys.argv) > 1):
         namespace = sys.argv[1]
     else:
         namespace = 'DJI'
 
+    rospy.loginfo("DAGGER Main process starting up! \n Please initiate expert and policy modules!\n ==== RUNNING ====")
+    # print("DAGGER Main process starting up! \n Please initiate expert and policy modules!\n ==== RUNNING ====")
+
     while not rospy.is_shutdown():
         rospy.init_node('DAGGER_Node')
         DAggerNode(namespace=namespace)
         rospy.spin()
 
-    # while not rospy.is_shutdown():
-    #     print('running')
-    #     Dagger.random_selection()
-    #     rate.sleep()
-
 
 if __name__ == '__main__':
     try:
-        main()
+        dagger_main()
     except rospy.ROSInterruptException:
         pass
 

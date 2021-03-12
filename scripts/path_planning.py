@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/home/charris/obstacle_avoidance/src/dagger_pytorch_ros/venv/bin/python
 
 '''
 
@@ -14,7 +14,6 @@ from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectory
 from geometry_msgs.msg import Point, Twist, Transform, Quaternion
 import quaternion
 from std_msgs.msg import Header
-
 
 import sys
 import os
@@ -62,21 +61,20 @@ class Grid:
         self.width = width
         self.mpn = meters_per_node
         self.origin = origin
-        self.cells = [[[] for j in range(0,width)] for i in range(0,length)]
-
+        self.cells = [[[] for j in range(0, width)] for i in range(0, length)]
 
     def add_cell(self, x, y, occ):
-        self.cells[x][y] = Cell(x,y,occ)
+        self.cells[x][y] = Cell(x, y, occ)
 
 
 def children(point, world):
     x, y = point.point
     links = []
     neighbors = [(x - 1, y), (x, y - 1), (x, y + 1), (x + 1, y), (x + 1, y + 1), (x + 1, y - 1), (x - 1, y - 1),
-      (x - 1, y + 1),
-      ]
+                 (x - 1, y + 1),
+                 ]
     for d in neighbors:
-        if d[0] >= np.size(world,0) or d[1] >= np.size(world,1):
+        if d[0] >= np.size(world, 0) or d[1] >= np.size(world, 1):
             continue
         elif d[0] < 0 or d[1] < 0:
             continue
@@ -88,25 +86,24 @@ def children(point, world):
 
 def astar2d(start, goal, grid):
     # round start and goal
-    start = (round(start[0],1), round(start[1],0))
-    goal = (round(goal[0],1), round(goal[1],0))
+    start = (round(start[0], 1), round(start[1], 0))
+    goal = (round(goal[0], 1), round(goal[1], 0))
     # goal = (0,1)
-
 
     # Create open and closed lists
     openlst = []
     closelst = []
 
-    nodes = [[[] for i in range(np.size(grid.cells,1))] for j in range(np.size(grid.cells,0))]
+    nodes = [[[] for i in range(np.size(grid.cells, 1))] for j in range(np.size(grid.cells, 0))]
     obstacles = []
 
-    for i in range(0,np.size(grid.cells,0)):
-        for j in range(0,np.size(grid.cells,1)):
+    for i in range(0, np.size(grid.cells, 0)):
+        for j in range(0, np.size(grid.cells, 1)):
             nodes[i][j] = Node(0, (int(grid.cells[i][j].x), int(grid.cells[i][j].y)), grid.cells[i][j].occupied)
 
     # Update node global values with references from grid
-    for i in range(0,np.size(grid.cells,0)):
-        for j in range(0,np.size(grid.cells,1)):
+    for i in range(0, np.size(grid.cells, 0)):
+        for j in range(0, np.size(grid.cells, 1)):
             new_x = nodes[i][j].point[0] * grid.mpn + grid.origin[0]
             new_y = nodes[i][j].point[1] * grid.mpn + grid.origin[1]
             # if nodes[i][j].isOccupied:
@@ -116,16 +113,17 @@ def astar2d(start, goal, grid):
             # nodes[i][j].point[0] = nodes[i][j].point[0] * grid.mpn + grid.origin[0]
             # nodes[i][j].point[1] = nodes[i][j].point[1] * grid.mpn + grid.origin[1]
 
-
     # Add start point to open lst
     start_index = None
     goal_index = None
     for i in range(0, np.size(grid.cells, 0)):
         for j in range(0, np.size(grid.cells, 1)):
-            if abs(float(nodes[i][j].global_point[0]) - float(start[0])) <= 0.5 and abs(float(nodes[i][j].global_point[1]) - float(start[1])) <= 0.5:
-                start_index = (i,j)
-            elif abs(float(nodes[i][j].global_point[0]) - float(goal[0])) <= 0.5 and abs(float(nodes[i][j].global_point[1]) - float(goal[1])) <= 0.5:
-                goal_index = (i,j)
+            if abs(float(nodes[i][j].global_point[0]) - float(start[0])) <= 0.5 and abs(
+                    float(nodes[i][j].global_point[1]) - float(start[1])) <= 0.5:
+                start_index = (i, j)
+            elif abs(float(nodes[i][j].global_point[0]) - float(goal[0])) <= 0.5 and abs(
+                    float(nodes[i][j].global_point[1]) - float(goal[1])) <= 0.5:
+                goal_index = (i, j)
     if start_index is None:
         print('Start Point could not be found in graph!')
     elif goal_index is None:
@@ -133,7 +131,6 @@ def astar2d(start, goal, grid):
     else:
         current = nodes[start_index[0]][start_index[1]]
         openlst.append(current)
-
 
     # Evaluate Manhattan Distance to goal
     for i in range(0, np.size(grid.cells, 0)):
@@ -195,7 +192,7 @@ def astar2d(start, goal, grid):
     raise ValueError('No Path Found')
 
 
-def find_path(graph, start, goal, debug = False):
+def find_path(graph, start, goal, debug=False):
     # start = (0,8)
     # TODO:  Change to global waypoint, and if it doesn't exist output NO PATH
     # goal = (3,8)
@@ -230,36 +227,36 @@ def find_path(graph, start, goal, debug = False):
     else:
         wa, wb = (None, None)
 
-
     # Plot the full zone
-    for i in range(0,np.size(graph.cells,0)):
-        for j in range(0,np.size(graph.cells,1)):
+    for i in range(0, np.size(graph.cells, 0)):
+        for j in range(0, np.size(graph.cells, 1)):
             if graph.cells[i][j].occupied:
-                allobstacles.append((graph.cells[i][j].x + graph.origin[0] + 0.5, graph.cells[i][j].y + graph.origin[1] + 0.5))
+                allobstacles.append(
+                    (graph.cells[i][j].x + graph.origin[0] + 0.5, graph.cells[i][j].y + graph.origin[1] + 0.5))
             else:
-                allpoints.append((graph.cells[i][j].x + graph.origin[0] + 0.5, graph.cells[i][j].y + graph.origin[1] + 0.5))
+                allpoints.append(
+                    (graph.cells[i][j].x + graph.origin[0] + 0.5, graph.cells[i][j].y + graph.origin[1] + 0.5))
     all_x, all_y = zip(*allpoints)
     wall_x, wall_y = zip(*allobstacles)
-
 
     if debug:
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(a,b, c='g')
+        ax.plot(a, b, c='g')
 
-        ax.scatter(all_x, all_y, c='b', marker = 'o')
-        ax.scatter(wall_x, wall_y, c='r', marker = 's')
+        ax.scatter(all_x, all_y, c='b', marker='o')
+        ax.scatter(wall_x, wall_y, c='r', marker='s')
 
         ax.scatter(wa, wb, c='r', marker='X')
-        ax.scatter(start[0],start[1],c='g', marker = '^')
-        ax.scatter(goal[0],goal[1],c='g', marker = '*')
+        ax.scatter(start[0], start[1], c='g', marker='^')
+        ax.scatter(goal[0], goal[1], c='g', marker='*')
 
         fig2 = plt.figure()
         ax2 = fig2.add_subplot(111)
-        ax2.scatter(all_x, all_y, c='b', marker = 'o')
-        ax2.scatter(wall_x, wall_y, c='r', marker = 's')
+        ax2.scatter(all_x, all_y, c='b', marker='o')
+        ax2.scatter(wall_x, wall_y, c='r', marker='s')
         plt.show()
-        
+
     return nodes
 
 
@@ -272,7 +269,7 @@ def create_graph(msg):
 
     columns, rows = grid.shape
 
-    graph = Grid(rows-1, columns-1, grid_origin, grid_mpc)
+    graph = Grid(rows - 1, columns - 1, grid_origin, grid_mpc)
 
     graph_cnt = 0
     for i in range(0, rows - 1):
@@ -285,16 +282,15 @@ def create_graph(msg):
 
             occupancy = grid[j, i]
 
-            #TODO:  Change to only if it is 0, so that unknown squares will be counted us obstacles!
+            # TODO:  Change to only if it is 0, so that unknown squares will be counted us obstacles!
             if occupancy < 20:
                 occupancy = False
             else:
                 occupancy = True
 
-            graph.add_cell(i,j,occupancy)
+            graph.add_cell(i, j, occupancy)
 
             graph_cnt = graph_cnt + 1
-
 
     return graph
 
@@ -349,27 +345,26 @@ def odom_callback(odom_msg):
 
     else:
         if abs(x_truth - 5) < abs(x_truth - 0):
-            waypoints.insert(0,(0, 0, 1.5, -45))
+            waypoints.insert(0, (0, 0, 1.5, -45))
             # added_waypoints = []
             map_seen = False
         else:
-            waypoints.insert(0,(5, 0, 1.5, -45))
+            waypoints.insert(0, (5, 0, 1.5, -45))
             added_waypoints = []
-
 
     # If another waypoint still exists, check if new path is required and publish waypoint message to controller
     if len(waypoints) > 0:
         # added_waypoints = []  # DELETE IN FUTURE
         if added_waypoints == [] and map_seen is True or update is True:
             end = (5.5, 0)
-            path = find_path(graph,start=position, goal=end, debug=False)
+            path = find_path(graph, start=position, goal=end, debug=False)
             end_time = rospy.Time.now().to_sec()
             time_taken = end_time - map_time
             print('time taken:  {}'.format(time_taken))
             # added_waypoints = []
             # map_seen = False # DELETE IN FUTURE
-            for i in range(0,len(path)):
-                added_waypoints.insert(0,(path[i][0], path[i][1], z_des, -45))
+            for i in range(0, len(path)):
+                added_waypoints.insert(0, (path[i][0], path[i][1], z_des, -45))
             # added_waypoints.insert(0,waypoints)
             # waypoints.append(added_waypoints)
             waypoints = added_waypoints
@@ -397,7 +392,7 @@ def odom_callback(odom_msg):
         header.stamp = rospy.Time()
         header.frame_id = 'frame'
         wpt.header = header
-        for k in range(0,len(waypoints)):
+        for k in range(0, len(waypoints)):
             x_des = waypoints[k][0]
             y_des = waypoints[k][1]
             z_des = waypoints[k][2]
@@ -426,16 +421,14 @@ def odom_callback(odom_msg):
         astar_publisher.publish(next_point)
 
 
-
 def grid_callback(grid_msg):
-
     global map_time, graph, map_seen
     # map_time = rospy.Time.now()
     map_seen = True
     graph = create_graph(grid_msg)
 
-def main():
 
+def planner_main():
     # Script Parameters
     global debug
     global wp_publisher
@@ -475,11 +468,15 @@ def main():
 
     astar_publisher = rospy.Publisher(pub_point_string, Point, queue_size=10)
 
+    rospy.loginfo(
+        "\nStarting Path Planner Node for {}! \n Current planner is a 2D AStar planner!\n ---- RUNNING ----\n".format(
+            namespace))
+
     # Spin while node is not shutdown
     while not rospy.is_shutdown():
         rospy.spin()
 
 
 if __name__ == '__main__':
-    main()
+    planner_main()
 
