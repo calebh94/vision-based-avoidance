@@ -5,6 +5,7 @@ import sys
 import rospy
 from geometry_msgs.msg import Vector3
 
+
 def goal_publisher(x_goal, y_goal, z_goal):
     pub = rospy.Publisher('goal', Vector3, queue_size=10)
     rospy.init_node('Goal_publisher')
@@ -16,6 +17,7 @@ def goal_publisher(x_goal, y_goal, z_goal):
         my_goal.z = float(z_goal)
         pub.publish(my_goal)
         rate.sleep()
+
 
 if __name__ == '__main__':
     if len(sys.argv) > 3:

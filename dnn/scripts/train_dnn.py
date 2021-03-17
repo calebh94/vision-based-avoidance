@@ -18,7 +18,11 @@ import os
 import time
 from skimage import io, transform
 from skimage.color import rgb2gray
-from avoidance_framework import DNN_C4F4F2, DNN_C4F2F3, DNN_C4F2F3_Gray, DNN_C4F4F2_Astar, DNN_C4F4F2_Astar_small
+from dnn.scripts.dnn_architecture import DNN_C4F4F2_Astar_small, DNN_C4F4F2_Astar
+
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 class ObstacleAvoidanceDataset(Dataset):
@@ -26,7 +30,6 @@ class ObstacleAvoidanceDataset(Dataset):
 
     def __init__(self, csv_file, root_dir, transform=None):
         """
-
         :param csv_file: Path to the csv file with the image names and data
         :param root_dir: Directory with all the images
         :param transform: List of transforms to be applied on images
@@ -55,7 +58,6 @@ class ObstacleAvoidanceDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
-
 
 
 class ObstacleAvoidanceDataset_new(Dataset):
@@ -94,7 +96,6 @@ class ObstacleAvoidanceDataset_new(Dataset):
         return sample
 
 
-
 class VisdomLinePlotter(object):
     """Plots to Visdom"""
     def __init__(self, env_name='main'):
@@ -113,7 +114,6 @@ class VisdomLinePlotter(object):
             self.viz.line(X=np.array([x]), Y=np.array([y.cpu().numpy()]), env=self.env, win=self.plots[var_name], name=split_name, update = 'append')
 
 
-
 class Grayscale(object):
 
     def __call__(self, sample):
@@ -122,7 +122,6 @@ class Grayscale(object):
         img = np.expand_dims(img, 2)
 
         return {'image': img, 'pose': pose, 'astar': astar}
-
 
 
 class Rescale(object):
@@ -207,6 +206,7 @@ class ToTensor(object):
                 'pose': torch.from_numpy(pose),
                 'astar': torch.from_numpy(astar)}
 
+
 class ToTensor_Norm(object):
     """Convert ndarrays in sample to Tensors."""
 
@@ -221,6 +221,7 @@ class ToTensor_Norm(object):
         return {'image': F.normalize(torch.from_numpy(image),3),
                 'pose': torch.from_numpy(pose),
                 'astar': torch.from_numpy(astar)}
+
 
 def show_img_batch(sample_batched):
     images_batch = sample_batched['image']
@@ -304,7 +305,6 @@ def datasettest():
     plt.show()
 
 
-
 def show_image_annotated(image, pose, astar):
     plt.imshow(image)
     annotation_string = "Poses: {}".format(pose[:]) + " \n" + "Astar: {}".format(astar[:])
@@ -361,142 +361,141 @@ def get_loader(dataset, batch_size, shuffle, num_workers, sampler):
     return loader
 
 
-def TrainNet(net, batch_size_train, batch_size_val, shuffle, num_workers, data, train_sampler, val_sampler, n_epochs, learning_rate):
-
-    # Print all of the hyperparameters of the training iteration:
-    print("===== HYPERPARAMETERS =====")
-    print("batch_size=", batch_size_train)
-    print("epochs=", n_epochs)
-    print("learning_rate=", learning_rate)
-    print("=" * 30)
-
-    # Get dataloaders
-    train_loader = get_loader(data, batch_size_train, shuffle, num_workers, sampler=train_sampler)
-    val_loader = get_loader(data, batch_size_val, shuffle=False, num_workers=2, sampler=val_sampler)
-
-    # Get training data
-    # train_loader = get_train_loader(batch_size, training_set, train_sampler)
-    n_batches = len(train_loader)
-
-    # Create our loss and optimizer functions
-    loss, optimizer = createLossAndOptimizer(net, learning_rate)
-
-    # Time for printing
-    training_start_time = time.time()
-
-    # Loop for n_epochs
-    for epoch in range(n_epochs):
-
-        running_loss = 0.0
-        print_every = n_batches / 10
-        start_time = time.time()
-        total_train_loss = 0
-
-        # train_loader.dataset.indices = train_loader.dataset.indices.tolist()
-        for i, data in enumerate(train_loader):
-
-            # Get inputs
-            # inputs, labels = data
-            img_input, pose_input, expert = data['image'], data['pose'], data['astar']
-
-            # Wrap them in a Variable object
-            # inputs, labels = Variable(inputs), Variable(labels)
-            img_input, pose_input, expert = Variable(img_input), Variable(pose_input), Variable(expert)
-
-            if next(net.parameters()).is_cuda == True:
-                img_input = img_input.to(torch.device("cuda"))
-                pose_input = pose_input.to(torch.device("cuda"))
-                expert = expert.to(torch.device("cuda"))
-
-            # Set the parameter gradients to zero
-            optimizer.zero_grad()
-
-            # Forward pass, backward pass, optimize
-            # outputs = net(pose_input[i], img_input[i])
-            outputs = net(pose_input, img_input)
-
-            # loss_size = loss(outputs, expert[i].float())
-            loss_size = loss(outputs, expert.float())
-
-            loss_size.backward()
-            optimizer.step()
-
-            # Print statistics
-            running_loss += loss_size.data
-            total_train_loss += loss_size.data
-
-            # Print every 10th batch of an epoch
-            # if (i + 1) % (print_every + 1) == 0:
-            print("Epoch {}, {:d}% \t train_loss: {:.2f} took: {:.2f}s".format(
-                epoch + 1, int(100 * (i + 1) / n_batches), running_loss / 1,
-                time.time() - start_time))
-            # Reset running loss and time
-            running_loss = 0.0
-            start_time = time.time()
-
-        # At the end of the epoch, do a pass on the validation set
-        total_val_loss = 0
-        for i_val, data_val in enumerate(val_loader):
-            # Wrap tensors in Variables
-            img_input_val, pose_input_val, expert_val = Variable(data_val['image']), Variable(data_val['pose'])\
-                , Variable(data_val['astar'])
-
-            if next(net.parameters()).is_cuda == True:
-                img_input_val = img_input_val.to(torch.device("cuda"))
-                pose_input_val = pose_input_val.to(torch.device("cuda"))
-                expert_val = expert_val.to(torch.device("cuda"))
-
-            # Forward pass
-            val_outputs = net(pose_input_val, img_input_val)
-            val_loss_size = loss(val_outputs, expert_val.float())
-            total_val_loss += val_loss_size.data
-
-        print("Validation loss = {:.2f}".format(total_val_loss / len(val_loader)))
-
-    print("Training finished, took {:.2f}s".format(time.time() - training_start_time))
-
-
-
-def TestNet(net, batch_size, data, sampler):
-
-    test_loader = get_loader(data, batch_size, shuffle=False, num_workers=2, sampler=sampler)
-
-    net.eval()
-    loss_func = torch.nn.MSELoss()
-    test_loss = 0
-    correct = 0
-
-    for j, data in enumerate(test_loader):
-        img_input, pose_input, expert = data['image'], data['pose'], data['astar']
-        # outputs = model(pose_input[j], img_input[j])
-
-        img_input, pose_input, expert = Variable(img_input), Variable(pose_input), Variable(expert)
-
-        if next(net.parameters()).is_cuda == True:
-            img_input = img_input.to(torch.device("cuda"))
-            pose_input = pose_input.to(torch.device("cuda"))
-            expert = expert.to(torch.device("cuda"))
-
-        outputs = net(pose_input, img_input)
-
-        # test_loss += F.nll_loss(outputs, expert[j].float(), size_average=False).data[0]
-
-        test_loss += loss_func(outputs, expert.float())
-
-        if test_loss < 0.01:
-            correct = correct + 1
-
-        # pred = outputs.data.max(1,keepdim=True)[1]
-
-        # correct += pred.eq(expert[j].float().data.view_as(pred)).sum()
-
-        test_loss /= len(test_loader)
-
-        print("Model Output: {}".format(outputs.data) + " \n" + "Expert Output: {}".format(expert.data))
-
-        # test_loss /= len(test_loader.dataset)
-    print('Test set: Average loss: {:.4f}'.format(test_loss))
-
+# def TrainNet(net, batch_size_train, batch_size_val, shuffle, num_workers, data, train_sampler, val_sampler, n_epochs, learning_rate):
+#
+#     # Print all of the hyperparameters of the training iteration:
+#     print("===== HYPERPARAMETERS =====")
+#     print("batch_size=", batch_size_train)
+#     print("epochs=", n_epochs)
+#     print("learning_rate=", learning_rate)
+#     print("=" * 30)
+#
+#     # Get dataloaders
+#     train_loader = get_loader(data, batch_size_train, shuffle, num_workers, sampler=train_sampler)
+#     val_loader = get_loader(data, batch_size_val, shuffle=False, num_workers=2, sampler=val_sampler)
+#
+#     # Get training data
+#     # train_loader = get_train_loader(batch_size, training_set, train_sampler)
+#     n_batches = len(train_loader)
+#
+#     # Create our loss and optimizer functions
+#     loss, optimizer = createLossAndOptimizer(net, learning_rate)
+#
+#     # Time for printing
+#     training_start_time = time.time()
+#
+#     # Loop for n_epochs
+#     for epoch in range(n_epochs):
+#
+#         running_loss = 0.0
+#         print_every = n_batches / 10
+#         start_time = time.time()
+#         total_train_loss = 0
+#
+#         # train_loader.dataset.indices = train_loader.dataset.indices.tolist()
+#         for i, data in enumerate(train_loader):
+#
+#             # Get inputs
+#             # inputs, labels = data
+#             img_input, pose_input, expert = data['image'], data['pose'], data['astar']
+#
+#             # Wrap them in a Variable object
+#             # inputs, labels = Variable(inputs), Variable(labels)
+#             img_input, pose_input, expert = Variable(img_input), Variable(pose_input), Variable(expert)
+#
+#             if next(net.parameters()).is_cuda == True:
+#                 img_input = img_input.to(torch.device("cuda"))
+#                 pose_input = pose_input.to(torch.device("cuda"))
+#                 expert = expert.to(torch.device("cuda"))
+#
+#             # Set the parameter gradients to zero
+#             optimizer.zero_grad()
+#
+#             # Forward pass, backward pass, optimize
+#             # outputs = net(pose_input[i], img_input[i])
+#             outputs = net(pose_input, img_input)
+#
+#             # loss_size = loss(outputs, expert[i].float())
+#             loss_size = loss(outputs, expert.float())
+#
+#             loss_size.backward()
+#             optimizer.step()
+#
+#             # Print statistics
+#             running_loss += loss_size.data
+#             total_train_loss += loss_size.data
+#
+#             # Print every 10th batch of an epoch
+#             # if (i + 1) % (print_every + 1) == 0:
+#             print("Epoch {}, {:d}% \t train_loss: {:.2f} took: {:.2f}s".format(
+#                 epoch + 1, int(100 * (i + 1) / n_batches), running_loss / 1,
+#                 time.time() - start_time))
+#             # Reset running loss and time
+#             running_loss = 0.0
+#             start_time = time.time()
+#
+#         # At the end of the epoch, do a pass on the validation set
+#         total_val_loss = 0
+#         for i_val, data_val in enumerate(val_loader):
+#             # Wrap tensors in Variables
+#             img_input_val, pose_input_val, expert_val = Variable(data_val['image']), Variable(data_val['pose'])\
+#                 , Variable(data_val['astar'])
+#
+#             if next(net.parameters()).is_cuda == True:
+#                 img_input_val = img_input_val.to(torch.device("cuda"))
+#                 pose_input_val = pose_input_val.to(torch.device("cuda"))
+#                 expert_val = expert_val.to(torch.device("cuda"))
+#
+#             # Forward pass
+#             val_outputs = net(pose_input_val, img_input_val)
+#             val_loss_size = loss(val_outputs, expert_val.float())
+#             total_val_loss += val_loss_size.data
+#
+#         print("Validation loss = {:.2f}".format(total_val_loss / len(val_loader)))
+#
+#     print("Training finished, took {:.2f}s".format(time.time() - training_start_time))
+#
+#
+#
+# def TestNet(net, batch_size, data, sampler):
+#
+#     test_loader = get_loader(data, batch_size, shuffle=False, num_workers=2, sampler=sampler)
+#
+#     net.eval()
+#     loss_func = torch.nn.MSELoss()
+#     test_loss = 0
+#     correct = 0
+#
+#     for j, data in enumerate(test_loader):
+#         img_input, pose_input, expert = data['image'], data['pose'], data['astar']
+#         # outputs = model(pose_input[j], img_input[j])
+#
+#         img_input, pose_input, expert = Variable(img_input), Variable(pose_input), Variable(expert)
+#
+#         if next(net.parameters()).is_cuda == True:
+#             img_input = img_input.to(torch.device("cuda"))
+#             pose_input = pose_input.to(torch.device("cuda"))
+#             expert = expert.to(torch.device("cuda"))
+#
+#         outputs = net(pose_input, img_input)
+#
+#         # test_loss += F.nll_loss(outputs, expert[j].float(), size_average=False).data[0]
+#
+#         test_loss += loss_func(outputs, expert.float())
+#
+#         if test_loss < 0.01:
+#             correct = correct + 1
+#
+#         # pred = outputs.data.max(1,keepdim=True)[1]
+#
+#         # correct += pred.eq(expert[j].float().data.view_as(pred)).sum()
+#
+#         test_loss /= len(test_loader)
+#
+#         print("Model Output: {}".format(outputs.data) + " \n" + "Expert Output: {}".format(expert.data))
+#
+#         # test_loss /= len(test_loader.dataset)
+#     print('Test set: Average loss: {:.4f}'.format(test_loss))
 
 
 def TrainNet_new(net, batch_size_train, batch_size_val, shuffle, num_workers, train_data, val_data, n_epochs, learning_rate):
@@ -526,8 +525,6 @@ def TrainNet_new(net, batch_size_train, batch_size_val, shuffle, num_workers, tr
 
     # Time for printing
     training_start_time = time.time()
-
-
 
     # Loop for n_epochs
     for epoch in range(n_epochs):
@@ -677,17 +674,10 @@ def TestNet_new(net, batch_size, data):
         100. * correct / len(test_loader.sampler)))
 
 
-
-
 def main():
     # Initialize model
-    # model = DNN_C4F4F2()
-    # model = DNN_C4F2F3()
-    # model = DNN_C4F2F3_Gray()
-    # model = DNN_GT()
-    # model = DNN_Classifier_small
-    # model = DNN_C4F4F2_Astar()
     model = DNN_C4F4F2_Astar_small()
+    model = DNN_C4F4F2_Astar()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -723,11 +713,11 @@ def main():
         csv_file='/home/charris/Desktop/dataset_4-23/dataset_4-23_validation.csv',
         root_dir='/home/charris/Desktop/dataset_4-23', transform=transformations)
 
-    # print("Beginning Training...")
-    # TrainNet_new(model, batch_size_train, batch_size_val, shuffle=False, num_workers=2, train_data=training_data,
-    #              val_data=validation_data, n_epochs=100, learning_rate=0.005)
-    # print("Saving model...")
-    # torch.save(model.state_dict(), 'Models/dnn_4-23_v5.pt')
+    print("Beginning Training...")
+    TrainNet_new(model, batch_size_train, batch_size_val, shuffle=False, num_workers=2, train_data=training_data,
+                 val_data=validation_data, n_epochs=100, learning_rate=0.005)
+    print("Saving model...")
+    torch.save(model.state_dict(), 'Models/dnn_4-23_v5.pt')
 
     print("Loading model...")
     model.to("cpu")
@@ -736,7 +726,6 @@ def main():
     # with torch.no_grad()
     model.load_state_dict(torch.load('Models/dnn_4-23_v5_55.pt'))
     print("Beginning Testing...")
-    # TestNet(model, batch_size_test, data=training_data, sampler=test_sampler)
     TestNet_new(model, batch_size_test, data=testing_data)
 
 

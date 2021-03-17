@@ -1,14 +1,18 @@
-# Deep Learning for Obstacle Avoidance in RotorS
+# Deep Neural Network Training and Testing for Vision-based Avoidance
+
+The files in this folder are for training and testing a deep neural network for the vision-based avoidance methods defined in the high-level package.
 
 ## Overview
 
-Currently, the only two files required to run are:  avoidance_framework.py and train_DNN.py
+There are two key files that must be understood to produce a trained network.
+* dnn_architecture
+* train_dnn
 
-### avoidance_framework
+### dnn_architecture
 
-This file defines the deep neural network.  It has 4 convolutional layers, then 3 fully connected layers.  Then the pose_inputs (currently just [x,y]) is attached to the top of the fully connected layer then there are 2 fully connected layers.
+This file defines the deep neural network architecture.  It has 4 convolutional layers, then 3 fully connected layers.  Then the pose_inputs (currently just [x,y]) is attached to the top of the fully connected layer then there are 2 fully connected layers.
 
-### train_DNN
+### train_dnn
 
 In this file, you only need to worry about the ObstacleAvoidanceDataSet class, and then the functions:  main(), trainNet(), and testNet()
 
@@ -18,8 +22,8 @@ I define the three batch sizes for train, validation, and test.  Then I define t
 
 Then the TrainNet function is called which starts to train the model using Adam Optimizer and Mean Squared Error Loss function.  The train loss should print after each batch and the validation loss prints after each Epoch.
 
-The model is then saves.
+The model is then saved.
 
 ## Requirements
 
-The data must be in a folder under "/data" and it must contain the .csv file with all the image locations.  HOWEVER, I just realized that the current image filenames are absolution locations in the excel so this is a problem.  It should be a easy fix although.
+The data must be in a folder under "/data" and it must contain the .csv file with all the image locations.
