@@ -106,12 +106,8 @@ def astar2d(start, goal, grid):
         for j in range(0, np.size(grid.cells, 1)):
             new_x = nodes[i][j].point[0] * grid.mpn + grid.origin[0]
             new_y = nodes[i][j].point[1] * grid.mpn + grid.origin[1]
-            # if nodes[i][j].isOccupied:
-            #     new_x = new_x + grid.mpn/2
-            #     new_y = new_y + grid.mpn/2
+
             nodes[i][j].global_point = (new_x, new_y)
-            # nodes[i][j].point[0] = nodes[i][j].point[0] * grid.mpn + grid.origin[0]
-            # nodes[i][j].point[1] = nodes[i][j].point[1] * grid.mpn + grid.origin[1]
 
     # Add start point to open lst
     start_index = None
@@ -194,11 +190,9 @@ def astar2d(start, goal, grid):
 
 def find_path(graph, start, goal, debug=False):
     # start = (0,8)
-    # TODO:  Change to global waypoint, and if it doesn't exist output NO PATH
     # goal = (3,8)
 
     # Check if start and goal are in path
-
     path, list, obstacles = astar2d(start, goal, graph)
     # start = (start[0] + graph.origin[0], start[1] + graph.origin[1])
     # goal = (goal[0] + graph.origin[0], goal[1] + graph.origin[1])
@@ -208,18 +202,13 @@ def find_path(graph, start, goal, debug=False):
     allobstacles = []
 
     for i in range(len(path)):
-        # nodes.append(path[i].global_point + 0.5)
         nodes.append((path[i].global_point[0] + 0.5, path[i].global_point[1] + 0.5))
-
-    # nodes.append((0,0))
-    # nodes.insert(0,(5,0))
 
     for j in range(len(obstacles)):
         walls.append((obstacles[j].global_point[0] + 0.5, obstacles[j].global_point[1] + 0.5))
 
     print(nodes)
     a, b = zip(*nodes)
-    # a, b = list(a), list(b)
     print(walls)
 
     if len(walls) != 0:
@@ -274,8 +263,6 @@ def create_graph(msg):
     graph_cnt = 0
     for i in range(0, rows - 1):
         for j in range(0, columns - 1):
-            # x = i * grid_mpc + grid_origin[0]
-            # y = j * grid_mpc + grid_origin[1]
 
             if graph_cnt >= rows * columns:
                 ValueError('Number of nodes is greater than grid cells!')
@@ -371,24 +358,7 @@ def odom_callback(odom_msg):
             # waypoints.append(added_waypoints)
             waypoints = added_waypoints
 
-        # x_des = waypoints[0][0]
-        # y_des = waypoints[0][1]
-        # z_des = waypoints[0][2]
-        # theta_des = waypoints[0][3]
-        # # Create controller message for waypoint
-        # wpt = MultiDOFJointTrajectory()
-        # header = Header()
-        # header.stamp = rospy.Time()
-        # header.frame_id = 'frame'
-        # wpt.joint_names.append('base_link')
-        # wpt.header = header
-        # quat = quaternion.from_euler_angles(0, 0, math.radians(theta_des))
-        # transforms = Transform(translation=Point(x_des, y_des, z_des), rotation=quat)
-        # velocities = Twist()
-        # accelerations = Twist()
-        # point = MultiDOFJointTrajectoryPoint([transforms], [velocities], [accelerations], rospy.Time(0))
-        # wpt.points.append(point)
-        # wp_publisher.publish(wpt)
+
         wpt = MultiDOFJointTrajectory()
         header = Header()
         header.stamp = rospy.Time()
@@ -407,8 +377,7 @@ def odom_callback(odom_msg):
             point = MultiDOFJointTrajectoryPoint([transforms], [velocities], [accelerations], rospy.Time(k))
             wpt.points.append(point)
             wpt.joint_names.append('base_link')
-            #TODO: way to turn on and off this
-        # wp_publisher.publish(wpt)
+            # wp_publisher.publish(wpt)
 
         # Goal Point
         final = Point()
@@ -466,7 +435,6 @@ def planner_main():
     subscriber_odom = rospy.Subscriber(subscribe_string, Odometry, odom_callback, queue_size=1)
 
     # Create Publishers
-    #TODO: have switch for alone or with DNN
     wp_publisher = rospy.Publisher(publish_string, MultiDOFJointTrajectory, queue_size=1)
     goal_publisher = rospy.Publisher('/goal', Point, queue_size=10)
 

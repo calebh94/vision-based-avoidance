@@ -1,7 +1,9 @@
 #!/home/charris/obstacle_avoidance/src/dagger_pytorch_ros/venv/bin/python
 
 """
-Script for DAgger algorithm to select the expert of learned policy
+Script for DAgger algorithm to select the waypoint using the expert or learned policy
+
+by Caleb Harris (caleb.harris94@gatech.edu)
 """
 
 import sys
@@ -36,6 +38,7 @@ class DAggerNode:
         self.got_dnn = False
         self.got_astar = False
         self.restarting = False
+        self.training = True
 
         self.dnn = []
         self.astar = []
@@ -43,8 +46,7 @@ class DAggerNode:
         self.active = 'astar'  # To Start
         self.choice_count = 10 #choose every 10 actions
         self.choice_current = 10
-        self.dagger_beta = 0.0
-        # 1.0 ALL POLICY, 0.0 ALL EXPERT
+        self.dagger_beta = 0.0  # 1.0 ALL POLICY, 0.0 ALL EXPERT
 
         waypoint_string = '/' + str(self.namespace) + '/command/trajectory'
         selection_string = '/' + str(self.namespace + '/dagger/selection')
@@ -97,30 +99,26 @@ class DAggerNode:
             wpt.points.append(point)
             self.waypoint_pub.publish(wpt)
 
-        if abs(self.pose_x - 5) < 0.1:
-            #TODO: modify to a Goal file or only have this on when in "Training"
+        if abs(self.pose_x - 5) < 0.1 and self.training:
             self.restarting = True
             print('Made it to goal location')
 
     def callback_dnn(self, msg_dnn):
-        if self.restarting == False:
+        if not self.restarting:
             self.dnn = msg_dnn
             self.got_dnn = True
 
         # self.random_selection()
 
     def callback_astar(self, msg_astar):
-        if self.restarting == False:
+        if not self.restarting:
             self.astar = msg_astar
             self.got_astar = True
 
-            #currently making choice here after Astar solution is received (ASSUMING SLOWER!)
-            # CHECK WHICH IS SLOWER***
             self.random_selection()
 
     def random_selection(self):
-        if self.got_dnn and self.got_astar and self.restarting is False:
-
+        if self.got_dnn and self.got_astar and self.restarting is False:\
             # Choose every n times
             if self.choice_current == self.choice_count:
                 choices = ['astar', 'dnn']
@@ -156,17 +154,15 @@ class DAggerNode:
 
 
 def dagger_main():
-
     if (len(sys.argv) > 1):
         namespace = sys.argv[1]
     else:
         namespace = 'DJI'
-
     rospy.loginfo("DAGGER Main process starting up! \n Please initiate expert and policy modules!\n ==== RUNNING ====")
     # print("DAGGER Main process starting up! \n Please initiate expert and policy modules!\n ==== RUNNING ====")
 
     while not rospy.is_shutdown():
-        rospy.init_node('DAGGER_Node')
+        rospy.init_node('dagger')
         DAggerNode(namespace=namespace)
         rospy.spin()
 

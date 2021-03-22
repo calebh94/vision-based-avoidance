@@ -10,6 +10,21 @@ Follow these instructions to install the project from source. More information w
 
 This package is dependent on RotorS, mav_control_rw, pcl, cv2, torch and more! For more detailed package requirements please see the requirements file and the ROS package file.
 
+### Folders and Files
+The key files and folders to consider are:
+* *dnn\scripts\*
+    * *dnn_architecture.py*
+    * *train_dnn.py*
+* *scripts/*
+    * *astar_data_collection.py*
+    * *path_planning.py*
+    * *dagger_main.py*
+    
+### ROS Nodes
+* **dnn_policy**
+* **path_planner**
+* **dagger**
+
 ## Micro Air Vehicle (MAV) Models
 The original RotorS environment provided multiple MAV models such as hummingbird and firefly. Additional models have been created and are described below:
 * DJI: A custom designed quadcopter which uses  dji F450 flamewheel frame
